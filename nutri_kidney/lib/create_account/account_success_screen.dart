@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nutri_kidney/utils/app_logger.dart';
 import '../main/dashboard.dart';
@@ -80,15 +81,16 @@ class _AccountSuccessScreenState extends State<AccountSuccessScreen>
         child: Stack(
           children: [
             // Background Graphics
-            Positioned(
-              bottom: -360,
-              left: -110,
-              right: -90,
-              child: Image.asset(
-                'assets/images/bottom_waves.png',
-                fit: BoxFit.fitWidth,
+            if (!kIsWeb)
+              Positioned(
+                bottom: -360,
+                left: -110,
+                right: -90,
+                child: Image.asset(
+                  'assets/images/bottom_waves.png',
+                  fit: BoxFit.fitWidth,
+                ),
               ),
-            ),
 
             // Content
             SafeArea(

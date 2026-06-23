@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -134,15 +135,16 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Stack(
           children: [
             // --- Background Graphics ---
-            Positioned(
-              bottom: -360,
-              left: -110,
-              right: -90,
-              child: Image.asset(
-                'assets/images/bottom_waves.png',
-                fit: BoxFit.fitWidth,
+            if (!kIsWeb)
+              Positioned(
+                bottom: -360,
+                left: -110,
+                right: -90,
+                child: Image.asset(
+                  'assets/images/bottom_waves.png',
+                  fit: BoxFit.fitWidth,
+                ),
               ),
-            ),
 
             // --- Foreground Content ---
             SafeArea(
