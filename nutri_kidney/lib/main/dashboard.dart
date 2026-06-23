@@ -36,6 +36,7 @@ class _DashboardPageState extends State<DashboardPage>
   Map<String, dynamic>? _medicationData;
   Map<String, dynamic>? _todayMealPlan;
   List<Map<String, dynamic>> _medications = [];
+  bool _caregiverNoChildEmptyState = false;
 
   // Animation controllers for alert blinking effects
   late AnimationController _nutritionAlertBlinkController;
@@ -153,6 +154,9 @@ class _DashboardPageState extends State<DashboardPage>
           .toLowerCase();
       final isCaregiver = viewerRole == "caregiver" ||
           viewerRole == "parent_caregiver";
+      final caregiverState = _asStringMap(response["caregiverDashboardState"]);
+      final linkedChildren = caregiverState["linkedChildren"];
+      final hasManagedChildren = linkedChildren is List && linkedChildren.isNotEmpty;
       // The backend resolves managed/link entry IDs to the adolescent's actual
       // profile owner ID. Keep that canonical ID for subsequent caregiver
       // writes so both accounts read the same nutrition record.
@@ -202,10 +206,12 @@ class _DashboardPageState extends State<DashboardPage>
       setState(() {
         _viewer = viewer;
         _user = _asStringMap(response["user"]);
-        _caregiverDashboardState =
-            _asStringMap(response["caregiverDashboardState"]);
+        _caregiverDashboardState = caregiverState;
+        _caregiverNoChildEmptyState = isCaregiver && !hasManagedChildren;
         _dashboardOwnerId = responseOwnerId;
-        if (_isCaregiverDashboard && _dashboardOwnerId != null) {
+        if (_isCaregiverDashboard &&
+            !_caregiverNoChildEmptyState &&
+            _dashboardOwnerId != null) {
           final managedChildIds =
               _managedChildren.map((child) => child["id"]).toSet();
           if (!managedChildIds.contains(
@@ -243,6 +249,7 @@ class _DashboardPageState extends State<DashboardPage>
       MaterialPageRoute(
         builder: (context) => FoodLogPage(
           profileUserId: _activeProfileUserId,
+          caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
         ),
       ),
     );
@@ -679,6 +686,10 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    if (!_isLoadingDashboard && _caregiverNoChildEmptyState) {
+      return _buildCaregiverNoChildScaffold();
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBFB),
       body: SafeArea(
@@ -739,6 +750,7 @@ class _DashboardPageState extends State<DashboardPage>
                 MaterialPageRoute(
                   builder: (context) => AnalyticsPage(
                     profileUserId: _activeProfileUserId,
+                    caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
                   ),
                 ),
               );
@@ -748,6 +760,7 @@ class _DashboardPageState extends State<DashboardPage>
                 MaterialPageRoute(
                   builder: (context) => HealthMetricsPage(
                     profileUserId: _activeProfileUserId,
+                    caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
                   ),
                 ),
               );
@@ -757,6 +770,7 @@ class _DashboardPageState extends State<DashboardPage>
                 MaterialPageRoute(
                   builder: (context) => ProfilePage(
                     profileUserId: _activeProfileUserId,
+                    caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
                   ),
                 ),
               );
@@ -798,6 +812,143 @@ class _DashboardPageState extends State<DashboardPage>
         ),
       ),
     );
+  }
+
+  Widget _buildCaregiverNoChildScaffold() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FBFB),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE0F2ED)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No child profile yet',
+                      style: TextStyle(
+                        color: Color(0xFF37474F),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Add or link a child profile from Profile before viewing the dashboard or food log.',
+                      style: TextStyle(
+                        color: Color(0xFF607D8B),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: _handleNavigationTap,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF00C874),
+        unselectedItemColor: const Color(0xFFB0BEC5),
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Food',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            label: 'Health',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleNavigationTap(int index) {
+    if (index == 1) {
+      _openFoodLogAndRefresh();
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnalyticsPage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HealthMetricsPage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else if (index == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _caregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   // --- 1. Header Area ---

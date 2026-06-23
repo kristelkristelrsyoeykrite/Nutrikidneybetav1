@@ -256,6 +256,8 @@ class _FoodLogPageState extends State<FoodLogPage>
   bool _isGeneratingMealPlan = false;
   int _currentStreak = 0;
   bool _mealPlanCompletionAwardUnlocked = false;
+  bool _resolvedCaregiverNoChildEmptyState = false;
+  bool _isCheckingCaregiverChildState = false;
 
   // Calorie target tracking
   double? _userWeightKg;
@@ -293,14 +295,16 @@ class _FoodLogPageState extends State<FoodLogPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _resolvedCaregiverNoChildEmptyState = widget.caregiverNoChildEmptyState;
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
       });
     });
-    _loadFoodLogs(forceRefresh: true);
-    _loadCurrentStreak(forceRefresh: true);
-    _loadProfileDataForCalorieTarget();
+    if (!widget.caregiverNoChildEmptyState) {
+      _isCheckingCaregiverChildState = true;
+      _initializeFoodLog();
+    }
   }
 
   @override
@@ -313,13 +317,53 @@ class _FoodLogPageState extends State<FoodLogPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed &&
+        !_resolvedCaregiverNoChildEmptyState) {
       _loadFoodLogs(forceRefresh: true);
       _loadCurrentStreak(forceRefresh: true);
     }
   }
 
   String get _selectedDate => DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+  Future<void> _initializeFoodLog() async {
+    try {
+      if (await _shouldShowCaregiverEmptyState()) {
+        if (!mounted) return;
+        setState(() {
+          _resolvedCaregiverNoChildEmptyState = true;
+          _isCheckingCaregiverChildState = false;
+          _isLoadingLogs = false;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('Food Log caregiver child-profile check failed: $e');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isCheckingCaregiverChildState = false;
+    });
+    _loadFoodLogs(forceRefresh: true);
+    _loadCurrentStreak(forceRefresh: true);
+    _loadProfileDataForCalorieTarget();
+  }
+
+  Future<bool> _shouldShowCaregiverEmptyState() async {
+    final response = await ApiService.getDashboardSummary(
+      profileUserId: widget.profileUserId,
+      forceRefresh: true,
+    );
+    final viewer = response['viewer'];
+    final role = viewer is Map
+        ? (viewer['role'] ?? viewer['userRole'] ?? '').toString().toLowerCase()
+        : '';
+    if (role != 'caregiver' && role != 'parent_caregiver') return false;
+    final state = response['caregiverDashboardState'];
+    final children = state is Map ? state['linkedChildren'] : null;
+    return children is! List || children.isEmpty;
+  }
 
   Future<void> _loadCurrentStreak({bool forceRefresh = false}) async {
     try {
@@ -3033,6 +3077,22 @@ class _FoodLogPageState extends State<FoodLogPage>
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingCaregiverChildState) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: const SafeArea(
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFF00C874)),
+          ),
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      );
+    }
+
+    if (_resolvedCaregiverNoChildEmptyState) {
+      return _buildCaregiverNoChildScaffold();
+    }
+
     final filteredQuickAdds = _allQuickAdds
         .where((item) => item['name']!.toLowerCase().contains(_searchQuery))
         .toList();
@@ -3419,93 +3479,158 @@ class _FoodLogPageState extends State<FoodLogPage>
         ),
       ),
       // --- Bottom Navigation Bar ---
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            if (index == 0) {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardPage()),
-                (route) => false,
-              );
-            } else if (index == 2) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AnalyticsPage(
-                    profileUserId: _activeProfileUserId,
-                  ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildCaregiverNoChildScaffold() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FBFB),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Food Log',
+                style: TextStyle(
+                  color: Color(0xFF37474F),
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
                 ),
-              );
-            } else if (index == 3) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => HealthMetricsPage(
-                    profileUserId: _activeProfileUserId,
-                  ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE0F2ED)),
                 ),
-              );
-            } else if (index == 4) {
-              // --- UPDATED LOGIC HERE: Now routes to ProfilePage ---
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfilePage(
-                    profileUserId: _activeProfileUserId,
-                  ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No child profile yet',
+                      style: TextStyle(
+                        color: Color(0xFF37474F),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Add or link a child profile from Profile before logging food.',
+                      style: TextStyle(
+                        color: Color(0xFF607D8B),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            } else {
-              setState(() {
-                _currentIndex = index;
-              });
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF00C874),
-          unselectedItemColor: const Color(0xFFB0BEC5),
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant_menu),
-              label: 'Food',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: 'Analytics',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border),
-              activeIcon: Icon(Icons.favorite),
-              label: 'Health',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: _handleNavigationTap,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF00C874),
+        unselectedItemColor: const Color(0xFFB0BEC5),
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Food',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            activeIcon: Icon(Icons.favorite),
+            label: 'Health',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleNavigationTap(int index) {
+    if (index == 0) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+        (route) => false,
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnalyticsPage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _resolvedCaregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HealthMetricsPage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _resolvedCaregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else if (index == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(
+            profileUserId: _activeProfileUserId,
+            caregiverNoChildEmptyState: _resolvedCaregiverNoChildEmptyState,
+          ),
+        ),
+      );
+    } else {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   // --- UI Helpers ---
