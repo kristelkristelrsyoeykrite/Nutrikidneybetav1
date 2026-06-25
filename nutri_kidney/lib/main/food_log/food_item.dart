@@ -16,6 +16,7 @@ class FoodItem {
   final double sodium;
   final double potassium;
   final double phosphorus;
+  final double calcium;
   final double waterMl;
   final Map<String, dynamic>? fluidContribution;
   final String source;
@@ -38,6 +39,7 @@ class FoodItem {
     this.sodium = 0,
     this.potassium = 0,
     this.phosphorus = 0,
+    this.calcium = 0,
     this.waterMl = 0,
     this.fluidContribution,
     this.source = 'manual_entry',
@@ -84,6 +86,7 @@ class FoodItem {
       sodium: _asDouble(nutrients['sodium']),
       potassium: _asDouble(nutrients['potassium']),
       phosphorus: _asDouble(nutrients['phosphorus']),
+      calcium: _asDouble(nutrients['calcium']),
       waterMl: _asDouble(data['waterMl'] ?? data['water_ml']),
       fluidContribution: fluidContribution,
       source: data['source']?.toString() ?? 'manual_entry',
@@ -109,8 +112,9 @@ class FoodItem {
       sodium: _asDouble(nutrients['sodium']),
       potassium: _asDouble(nutrients['potassium']),
       phosphorus: _asDouble(nutrients['phosphorus']),
-        waterMl: _asDouble(data['waterMl'] ?? data['water_ml']),
-        fluidContribution: data['fluidContribution'] is Map
+      calcium: _asDouble(nutrients['calcium']),
+      waterMl: _asDouble(data['waterMl'] ?? data['water_ml']),
+      fluidContribution: data['fluidContribution'] is Map
           ? Map<String, dynamic>.from(data['fluidContribution'] as Map)
           : data['fluid_contribution'] is Map
             ? Map<String, dynamic>.from(data['fluid_contribution'] as Map)

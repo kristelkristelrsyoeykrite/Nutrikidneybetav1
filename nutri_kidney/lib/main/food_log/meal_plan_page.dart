@@ -592,6 +592,7 @@ class _MealPlanPageState extends State<MealPlanPage> {
     final sodium = _doubleValue(meal['sodium']);
     final potassium = _doubleValue(meal['potassium']);
     final phosphorus = _doubleValue(meal['phosphorus']);
+    final calcium = _doubleValue(meal['calcium']);
     final components = meal['componentBreakdown'] is List
         ? (meal['componentBreakdown'] as List)
             .whereType<Map>()
@@ -762,6 +763,7 @@ class _MealPlanPageState extends State<MealPlanPage> {
                 _buildMiniNutrientPill('Sodium', _nutrientDisplay(sodium), 'mg'),
                 _buildMiniNutrientPill('K', _nutrientDisplay(potassium), 'mg'),
                 _buildMiniNutrientPill('Phos', _nutrientDisplay(phosphorus), 'mg'),
+                _buildMiniNutrientPill('Calcium', _nutrientDisplay(calcium), 'mg'),
                 _buildFluidContributionPill(fluidMl),
               ],
             ),
@@ -1041,6 +1043,8 @@ onPressed: _isAddingPlan
                                     'potassium': toNum(normalizedNutrients['potassium']),
                                     'phosphorus':
                                         toNum(normalizedNutrients['phosphorus']),
+                                    'calcium':
+                                        toNum(normalizedNutrients['calcium']),
                                     'waterMl': toNum(
                                       normalizedNutrients['waterMl'] ??
                                       normalizedNutrients['water_ml'] ??
@@ -1077,7 +1081,7 @@ onPressed: _isAddingPlan
                             : [meal];
 
                         // Build totals by summing nutrients from each expanded ingredient.
-                        // This ensures FoodLog receives protein/sodium/potassium/phosphorus,
+                        // This ensures FoodLog receives protein/sodium/potassium/phosphorus/calcium,
                         // not just calories.
                         Map<String, dynamic> computedTotals = <String, dynamic>{};
                         double sumCalories = 0;
@@ -1085,6 +1089,7 @@ onPressed: _isAddingPlan
                         double sumSodium = 0;
                         double sumPotassium = 0;
                         double sumPhosphorus = 0;
+                        double sumCalcium = 0;
                         double sumWaterMl = 0;
                         for (final m in expandedMeals) {
                           if (m is Map<String, dynamic>) {
@@ -1093,6 +1098,7 @@ onPressed: _isAddingPlan
                             final so = m['sodium'];
                             final k = m['potassium'];
                             final ph = m['phosphorus'];
+                            final ca = m['calcium'];
                             final water = m['waterMl'] ?? m['water_ml'];
 
                             double? toD(dynamic v) {
@@ -1105,6 +1111,7 @@ onPressed: _isAddingPlan
                             sumSodium += toD(so) ?? 0;
                             sumPotassium += toD(k) ?? 0;
                             sumPhosphorus += toD(ph) ?? 0;
+                            sumCalcium += toD(ca) ?? 0;
                             sumWaterMl += toD(water) ?? 0;
                           }
                         }
@@ -1115,6 +1122,7 @@ onPressed: _isAddingPlan
                           'sodium': sumSodium,
                           'potassium': sumPotassium,
                           'phosphorus': sumPhosphorus,
+                          'calcium': sumCalcium,
                           'waterMl': sumWaterMl,
                         };
 
@@ -1294,6 +1302,8 @@ onPressed: _isAddingPlan
         (_doubleValue(totals['potassium']) ?? 0) > 0;
     final hasPhosphorus = _doubleValue(totals['phosphorus']) != null &&
         (_doubleValue(totals['phosphorus']) ?? 0) > 0;
+    final hasCalcium = _doubleValue(totals['calcium']) != null &&
+        (_doubleValue(totals['calcium']) ?? 0) > 0;
     final fluidMl = _doubleValue(
       totals['waterMl'] ?? totals['water_ml'] ?? totals['fluid_ml'],
     );
@@ -1303,6 +1313,7 @@ onPressed: _isAddingPlan
         hasSodium ||
         hasPotassium ||
         hasPhosphorus ||
+        hasCalcium ||
         hasFluid;
     final prefix = isWeekly ? 'Avg ' : '';
 
@@ -1397,6 +1408,17 @@ onPressed: _isAddingPlan
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 '${prefix}Phosphorus: ${_nutrientDisplay(totals['phosphorus'])} mg',
+                style: const TextStyle(
+                  color: Color(0xFF37474F),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          if (hasCalcium)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '${prefix}Calcium: ${_nutrientDisplay(totals['calcium'])} mg',
                 style: const TextStyle(
                   color: Color(0xFF37474F),
                   fontSize: 13,

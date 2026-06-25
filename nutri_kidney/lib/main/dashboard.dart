@@ -193,6 +193,7 @@ class _DashboardPageState extends State<DashboardPage>
               "sodium": 0,
               "potassium": 0,
               "phosphorus": 0,
+              "calcium": 0,
             };
           }
           debugPrint(
@@ -446,6 +447,16 @@ class _DashboardPageState extends State<DashboardPage>
         0;
   }
 
+  double get _calciumTargetMg {
+    return _numberFrom(
+          _nutritionTargets["dailyCalciumTargetMg"] ??
+              _nutritionTargets["calcium_target_mg"] ??
+              _nutritionTargets["calciumTargetMg"] ??
+              _nutritionTargets["calcium"],
+        ) ??
+        0;
+  }
+
   Map<String, dynamic> get _todayNutritionTotals {
     final foodLogs = _intakeData?["foodLogs"];
     if (foodLogs is List && foodLogs.isNotEmpty) {
@@ -477,6 +488,8 @@ class _DashboardPageState extends State<DashboardPage>
       _numberFrom(_todayNutritionTotals["protein"]) ?? 0;
   double get _todayPhosphorusMg =>
       _numberFrom(_todayNutritionTotals["phosphorus"]) ?? 0;
+  double get _todayCalciumMg =>
+      _numberFrom(_todayNutritionTotals["calcium"]) ?? 0;
 
   int get _todayMealCount {
     final foodLogs = _intakeData?["foodLogs"];
@@ -1282,8 +1295,11 @@ class _DashboardPageState extends State<DashboardPage>
         _potassiumTargetMg > 0 && _todayPotassiumMg > _potassiumTargetMg;
     final phosphorusAlert =
         _phosphorusTargetMg > 0 && _todayPhosphorusMg > _phosphorusTargetMg;
+    final calciumAlert =
+        _calciumTargetMg > 0 && _todayCalciumMg > _calciumTargetMg;
 
-    final hasAnyNutritionAlert = sodiumAlert || potassiumAlert || phosphorusAlert;
+    final hasAnyNutritionAlert =
+        sodiumAlert || potassiumAlert || phosphorusAlert || calciumAlert;
 
     return AnimatedBuilder(
       animation: _nutritionAlertBlinkController,
@@ -1392,6 +1408,15 @@ final double glowOpacity = hasAnyNutritionAlert
                 progress: _progressFor(_todayPhosphorusMg, _phosphorusTargetMg),
                 color: const Color(0xFFFF7043),
                 isAlert: phosphorusAlert,
+              ),
+              const SizedBox(height: 16),
+              _buildNutritionBar(
+                label: "Calcium",
+                valueText:
+                    "${_formatNumber(_todayCalciumMg)} / ${_formatNumber(_calciumTargetMg)} mg",
+                progress: _progressFor(_todayCalciumMg, _calciumTargetMg),
+                color: const Color(0xFF42A5F5),
+                isAlert: calciumAlert,
               ),
               if (!_hasNutritionData) ...[
                 const SizedBox(height: 18),
@@ -1760,6 +1785,9 @@ final double glowOpacity = hasAnyNutritionAlert
     }
     if (_phosphorusTargetMg > 0 && _todayPhosphorusMg > _phosphorusTargetMg) {
       alerts.add('Phosphorus is above today\'s target.');
+    }
+    if (_calciumTargetMg > 0 && _todayCalciumMg > _calciumTargetMg) {
+      alerts.add('Calcium is above today\'s target.');
     }
 
     if (!_hasNutritionData) {

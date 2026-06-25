@@ -409,6 +409,7 @@ class ApiService {
     required String value,
     required String resultDate,
     String? labResultId,
+    bool recalculateNutritionTargets = true,
   }) async {
     if (_userId == null) {
       throw Exception("UserId not set. Please log in again.");
@@ -422,6 +423,7 @@ class ApiService {
         "metricType": metricType,
         "value": value,
         "resultDate": resultDate,
+        "recalculateNutritionTargets": recalculateNutritionTargets,
       },
     );
     return _invalidateOnSuccess(response, [
@@ -1395,6 +1397,7 @@ class ApiService {
     double? sodium,
     double? potassium,
     double? phosphorus,
+    double? calcium,
     String? servingId,
     double? quantity,
     String source = "manual_entry",
@@ -1427,6 +1430,7 @@ class ApiService {
         "sodium": sodium,
         "potassium": potassium,
         "phosphorus": phosphorus,
+        "calcium": calcium,
         "source": source,
         "needsManualReview": needsManualReview,
         "raw": raw,
@@ -1606,6 +1610,7 @@ class ApiService {
     double? sodium,
     double? potassium,
     double? phosphorus,
+    double? calcium,
     Map<String, dynamic>? raw,
     double? waterMl,
     Map<String, dynamic>? fluidContribution,
@@ -1631,6 +1636,7 @@ class ApiService {
         "sodium": sodium,
         "potassium": potassium,
         "phosphorus": phosphorus,
+        "calcium": calcium,
         "raw": raw,
         "waterMl": waterMl,
         "fluidContribution": fluidContribution,

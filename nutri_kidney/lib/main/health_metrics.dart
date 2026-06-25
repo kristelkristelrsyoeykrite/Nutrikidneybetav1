@@ -397,17 +397,22 @@ class _HealthMetricsPageState extends State<HealthMetricsPage> {
     return value;
   }
 
-  Future<bool> _confirmNutritionTargetUpdate() async {
+  Future<bool> _confirmNutritionTargetUpdate({bool isLabResult = false}) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text("Update Nutrition Targets?"),
-          content: const Text(
-            "The changes you made affect the child's nutritional profile. "
-            "Saving this update will trigger the system to recalculate "
-            "nutrition targets and may change the recommended insights, "
-            "limits, and guidance. Are you sure you want to continue?",
+          content: Text(
+            isLabResult
+                ? "Updating lab results can recalculate nutrition targets and "
+                    "affect the overall nutrition recommendations, limits, "
+                    "and guidance shown in the app. Are you sure you want "
+                    "to continue?"
+                : "The changes you made affect the child's nutritional profile. "
+                    "Saving this update will trigger the system to recalculate "
+                    "nutrition targets and may change the recommended insights, "
+                    "limits, and guidance. Are you sure you want to continue?",
           ),
           actions: [
             TextButton(
@@ -1597,14 +1602,19 @@ class _HealthMetricsPageState extends State<HealthMetricsPage> {
                               }
                             }
 
-                            final affectsNutritionTargets = [
-                              'Weight',
-                              'Height',
-                            ].contains(selectedType);
+                            final affectsNutritionTargets =
+                                isVitalMeasurement
+                                    ? [
+                                        'Weight',
+                                        'Height',
+                                      ].contains(selectedType)
+                                    : true;
 
                             if (affectsNutritionTargets) {
                               final confirmed =
-                                  await _confirmNutritionTargetUpdate();
+                                  await _confirmNutritionTargetUpdate(
+                                isLabResult: !isVitalMeasurement,
+                              );
                               if (!dialogMounted || !mounted) return;
                               if (!confirmed) return;
                             }
@@ -1699,6 +1709,8 @@ class _HealthMetricsPageState extends State<HealthMetricsPage> {
                                   resultDate: measurementDate,
                                   labResultId:
                                       existingLab?['labResultId']?.toString(),
+                                  recalculateNutritionTargets:
+                                      affectsNutritionTargets,
                                 );
 
                                 if (response["success"] != true) {

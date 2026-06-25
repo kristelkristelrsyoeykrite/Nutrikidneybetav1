@@ -613,6 +613,7 @@ class _FoodLogPageState extends State<FoodLogPage>
       sodium: food.sodium,
       potassium: food.potassium,
       phosphorus: food.phosphorus,
+      calcium: food.calcium,
       source: food.source,
       needsManualReview: food.needsManualReview,
       raw: food.raw,
@@ -762,6 +763,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                               sodium: 0,
                               potassium: 0,
                               phosphorus: 0,
+                              calcium: 0,
                               time: DateFormat('h:mm a')
                                   .format(DateTime.now()),
                               source: 'manual_entry',
@@ -788,6 +790,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                                   sodium: 0,
                                   potassium: 0,
                                   phosphorus: 0,
+                                  calcium: 0,
                                   source: 'manual_entry',
                                 );
                               } catch (_) {
@@ -881,6 +884,7 @@ class _FoodLogPageState extends State<FoodLogPage>
     double? sodium,
     double? potassium,
     double? phosphorus,
+    double? calcium,
     String? servingId,
     double? quantity,
     String source = 'manual_entry',
@@ -904,6 +908,7 @@ class _FoodLogPageState extends State<FoodLogPage>
         sodium: sodium,
         potassium: potassium,
         phosphorus: phosphorus,
+        calcium: calcium,
         servingId: servingId,
         quantity: quantity,
         source: source,
@@ -985,6 +990,7 @@ class _FoodLogPageState extends State<FoodLogPage>
       sodium: (food.sodium ?? 0),
       potassium: (food.potassium ?? 0),
       phosphorus: (food.phosphorus ?? 0),
+      calcium: (food.calcium ?? 0),
       source: food.source,
       needsManualReview: food.needsManualReview,
       raw: food.raw,
@@ -1133,6 +1139,7 @@ class _FoodLogPageState extends State<FoodLogPage>
           sodium: _mealPlanNumber(meal, 'sodium'),
           potassium: _mealPlanNumber(meal, 'potassium'),
           phosphorus: _mealPlanNumber(meal, 'phosphorus'),
+          calcium: _mealPlanNumber(meal, 'calcium'),
           source: meal['source']?.toString().trim().isNotEmpty == true
               ? meal['source'].toString()
               : 'meal_plan',
@@ -1166,6 +1173,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                 sodium: _mealPlanNumber(meal, 'sodium'),
                 potassium: _mealPlanNumber(meal, 'potassium'),
                 phosphorus: _mealPlanNumber(meal, 'phosphorus'),
+                calcium: _mealPlanNumber(meal, 'calcium'),
                 waterMl: _mealPlanNumber(meal, 'waterMl'),
                 fluidContribution: fluidContribution,
                 source: 'meal_plan',
@@ -1220,6 +1228,7 @@ class _FoodLogPageState extends State<FoodLogPage>
       sodium: updated.sodium,
       potassium: updated.potassium,
       phosphorus: updated.phosphorus,
+      calcium: updated.calcium,
       waterMl: updated.waterMl,
       fluidContribution: updated.fluidContribution,
       raw: updated.raw,
@@ -1423,6 +1432,7 @@ class _FoodLogPageState extends State<FoodLogPage>
         'sodium': baseNutrient('sodium', food.sodium),
         'potassium': baseNutrient('potassium', food.potassium),
         'phosphorus': baseNutrient('phosphorus', food.phosphorus),
+        'calcium': baseNutrient('calcium', food.calcium),
       },
     };
 
@@ -2052,6 +2062,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                                       sodium: food?.sodium ?? 0,
                                       potassium: food?.potassium ?? 0,
                                       phosphorus: food?.phosphorus ?? 0,
+                                      calcium: food?.calcium ?? 0,
                                       source: food?.source ?? 'manual_entry',
                                       needsManualReview:
                                           food?.needsManualReview ?? false,
@@ -2317,6 +2328,7 @@ class _FoodLogPageState extends State<FoodLogPage>
             final sodium = _asDouble(nutrients['sodium']);
             final potassium = _asDouble(nutrients['potassium']);
             final phosphorus = _asDouble(nutrients['phosphorus']);
+            final calcium = _asDouble(nutrients['calcium']);
             final safetyTargets = ckdSafetyAssessment?['targets'] is Map
                 ? Map<String, dynamic>.from(
                     ckdSafetyAssessment!['targets'] as Map,
@@ -2355,6 +2367,12 @@ class _FoodLogPageState extends State<FoodLogPage>
               'Phosphorus',
               phosphorus,
               safetyTargets['phosphorus'],
+              'mg',
+            );
+            addNutrientImpact(
+              'Calcium',
+              calcium,
+              safetyTargets['calcium'],
               'mg',
             );
             addNutrientImpact(
@@ -2738,6 +2756,12 @@ class _FoodLogPageState extends State<FoodLogPage>
                                 : 'Not available',
                           ),
                           _buildNutrientLine(
+                            'Calcium',
+                            calcium > 0
+                                ? '${calcium.round()} mg'
+                                : 'Not available',
+                          ),
+                          _buildNutrientLine(
                             'Fluid contribution',
                             fluidPreviewText,
                           ),
@@ -2888,6 +2912,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                                       var savedSodium = sodium;
                                       var savedPotassium = potassium;
                                       var savedPhosphorus = phosphorus;
+                                      var savedCalcium = calcium;
                                       double? savedWaterMl;
                                       Map<String, dynamic>? savedFluidContribution;
                                       Map<String, dynamic> savedRaw =
@@ -2982,6 +3007,12 @@ class _FoodLogPageState extends State<FoodLogPage>
                                                           'phosphorus'],
                                                     ) ??
                                                     savedPhosphorus;
+                                            savedCalcium =
+                                                parseFoodNutrientNumber(
+                                                      previewNutrients[
+                                                          'calcium'],
+                                                    ) ??
+                                                    savedCalcium;
                                             savedFluidContribution =
                                                 _fluidContributionFromPreview(
                                               preview,
@@ -3022,6 +3053,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                                               sodium: savedSodium,
                                               potassium: savedPotassium,
                                               phosphorus: savedPhosphorus,
+                                              calcium: savedCalcium,
                                               waterMl: savedWaterMl,
                                               fluidContribution:
                                                   savedFluidContribution,
@@ -3044,6 +3076,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                                               sodium: savedSodium,
                                               potassium: savedPotassium,
                                               phosphorus: savedPhosphorus,
+                                              calcium: savedCalcium,
                                               waterMl: savedWaterMl,
                                               fluidContribution:
                                                   savedFluidContribution,
@@ -4012,6 +4045,7 @@ class _FoodLogPageState extends State<FoodLogPage>
     final sodium = _asDouble(nutrients['sodium']) * quantity;
     final potassium = _asDouble(nutrients['potassium']) * quantity;
     final phosphorus = _asDouble(nutrients['phosphorus']) * quantity;
+    final calcium = _asDouble(nutrients['calcium']) * quantity;
 
     final pendingFood = FoodItem(
       foodId: foodId,
@@ -4028,6 +4062,7 @@ class _FoodLogPageState extends State<FoodLogPage>
       sodium: sodium,
       potassium: potassium,
       phosphorus: phosphorus,
+      calcium: calcium,
       source: 'fatsecret_image',
       raw: foodDetails,
     );
@@ -4062,6 +4097,7 @@ class _FoodLogPageState extends State<FoodLogPage>
         sodium: sodium,
         potassium: potassium,
         phosphorus: phosphorus,
+        calcium: calcium,
         source: 'fatsecret_image',
         raw: foodDetails,
       );
@@ -4121,6 +4157,7 @@ class _FoodLogPageState extends State<FoodLogPage>
     final sodium = _asDouble(nutrients['sodium']) * quantity;
     final potassium = _asDouble(nutrients['potassium']) * quantity;
     final phosphorus = _asDouble(nutrients['phosphorus']) * quantity;
+    final calcium = _asDouble(nutrients['calcium']) * quantity;
 
     return Container(
       width: double.infinity,
@@ -4278,6 +4315,10 @@ class _FoodLogPageState extends State<FoodLogPage>
                   phosphorus > 0
                       ? '${phosphorus.round()} mg (guide)'
                       : 'Not available',
+                ),
+                _buildNutrientLine(
+                  'Calcium',
+                  calcium > 0 ? '${calcium.round()} mg' : 'Not available',
                 ),
               ],
             ),
@@ -4571,6 +4612,36 @@ class _FoodLogPageState extends State<FoodLogPage>
                           ],
                         ),
                       ),
+                      if (food.calcium > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F5F5),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.monitor_heart_outlined,
+                                color: Color(0xFF37474F),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${food.calcium.round()} mg calcium',
+                                style: const TextStyle(
+                                  color: Color(0xFF37474F),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       Text(
                         food.time,
                         style: const TextStyle(

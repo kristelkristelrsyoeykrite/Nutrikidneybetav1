@@ -11,6 +11,7 @@ const Map<String, List<String>> foodNutrientAliases = {
   'phosphorus': [
     'phosphorus', 'phosphorous', 'phosphorus_mg', 'phosphorusMg',
   ],
+  'calcium': ['calcium', 'calcium_mg', 'calciumMg'],
 };
 
 double? parseFoodNutrientNumber(dynamic value) {
