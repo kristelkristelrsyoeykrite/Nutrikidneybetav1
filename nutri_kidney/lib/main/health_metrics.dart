@@ -1257,55 +1257,70 @@ class _HealthMetricsPageState extends State<HealthMetricsPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      lab['title'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF37474F),
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      lab['date'],
-                                      style: const TextStyle(
-                                        color: Color(0xFF90A4AE),
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      '${lab['value']} ${lab['unit']}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: lab['isWarning']
-                                            ? Colors.orange.shade800
-                                            : const Color(0xFF37474F),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    if (_optionalText(lab['status']).isNotEmpty)
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
                                       Text(
-                                        lab['status'],
-                                        style: TextStyle(
-                                          color: lab['isWarning']
-                                              ? Colors.orange
-                                              : Colors.green,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                        lab['title']?.toString() ?? '',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF37474F),
+                                          fontSize: 15,
                                         ),
                                       ),
-                                  ],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lab['date']?.toString() ?? '',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF90A4AE),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '${lab['value']} ${lab['unit']}',
+                                        textAlign: TextAlign.end,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: lab['isWarning']
+                                              ? Colors.orange.shade800
+                                              : const Color(0xFF37474F),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      if (_optionalText(lab['status']).isNotEmpty)
+                                        Text(
+                                          lab['status']?.toString() ?? '',
+                                          textAlign: TextAlign.end,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: lab['isWarning']
+                                                ? Colors.orange
+                                                : Colors.green,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

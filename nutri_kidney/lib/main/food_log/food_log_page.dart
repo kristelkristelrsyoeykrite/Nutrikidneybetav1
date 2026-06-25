@@ -451,7 +451,7 @@ class _FoodLogPageState extends State<FoodLogPage>
     });
 
     try {
-      // Fetch health summary to get weight and post-surgery info
+      // Fetch health summary to get weight and nutrition target info.
       final healthResponse = await ApiService.getHealthSummary(
         profileUserId: _activeProfileUserId,
       );
@@ -459,21 +459,44 @@ class _FoodLogPageState extends State<FoodLogPage>
       if (!mounted) return;
 
       final health = healthResponse['health'] is Map
-          ? Map<String, dynamic>.from(healthResponse['health'])
-          : {};
+          ? Map<String, dynamic>.from(healthResponse['health'] as Map)
+          : <String, dynamic>{};
+      final anthropometrics = healthResponse['anthropometrics'] is Map
+          ? Map<String, dynamic>.from(healthResponse['anthropometrics'] as Map)
+          : <String, dynamic>{};
+      final nutritionTargets = healthResponse['nutritionTargets'] is Map
+          ? Map<String, dynamic>.from(healthResponse['nutritionTargets'] as Map)
+          : <String, dynamic>{};
 
-      // Extract weight (try multiple possible field names)
-      final weight = health['weight'] ??
-          health['weightKg'] ??
-          health['weight_kg'] ??
-          health['currentWeight'] ??
-          health['current_weight'];
-      final weightKg = weight is num ? weight.toDouble() : null;
+      double? numberFrom(dynamic value) {
+        if (value is num) return value.toDouble();
+        if (value == null) return null;
+        final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(value.toString());
+        return match == null ? null : double.tryParse(match.group(0) ?? '');
+      }
 
-      // Check if post-surgery (sterile diet phase) and calculate calorie target
-      double? calorieTarget;
-      if (weightKg != null && weightKg > 0) {
-        // Use default 32.5 kcal/kg (middle of 30-35 range) for post-surgery
+      final targetFromProfile = numberFrom(
+        nutritionTargets['energy_target_kcal'] ??
+            nutritionTargets['calorieTarget'] ??
+            nutritionTargets['calorie_target'] ??
+            nutritionTargets['calories'],
+      );
+
+      final weightKg = numberFrom(
+        health['weight'] ??
+            health['weightKg'] ??
+            health['weight_kg'] ??
+            health['currentWeight'] ??
+            health['current_weight'] ??
+            anthropometrics['weight_kg'] ??
+            anthropometrics['weightKg'] ??
+            anthropometrics['weight'],
+      );
+
+      double? calorieTarget = targetFromProfile;
+      if ((calorieTarget == null || calorieTarget <= 0) &&
+          weightKg != null &&
+          weightKg > 0) {
         calorieTarget = weightKg * 32.5;
       }
 
@@ -517,6 +540,60 @@ class _FoodLogPageState extends State<FoodLogPage>
     };
 
     return joinedFoodNames[compact] ?? trimmed;
+  }
+
+  String _foodSearchRankText(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  int _foodSearchRank(FoodItem food, String query, int index) {
+    final normalizedQuery = _foodSearchRankText(query);
+    final compactQuery = normalizedQuery.replaceAll(' ', '');
+    final normalizedName = _foodSearchRankText(food.name);
+    final compactName = normalizedName.replaceAll(' ', '');
+    final words = normalizedName
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    final firstWord = words.isEmpty ? '' : words.first;
+    var score = 0;
+
+    if (normalizedName == normalizedQuery) score += 1000;
+    if (compactName == compactQuery) score += 900;
+    if (normalizedName.startsWith(normalizedQuery)) score += 700;
+    if (compactName.startsWith(compactQuery)) score += 650;
+    if (words.any((word) => word == normalizedQuery)) score += 550;
+    if (words.any((word) => word.startsWith(normalizedQuery))) score += 500;
+    if (normalizedName.contains(' $normalizedQuery')) score += 350;
+    if (compactName.contains(compactQuery)) score += 250;
+    if (firstWord.startsWith(normalizedQuery)) {
+      final extraLetters = (firstWord.length - normalizedQuery.length).clamp(0, 999);
+      score += (180 - extraLetters * 20).clamp(0, 180);
+    }
+    if (words.length == 1 && compactName.startsWith(compactQuery)) score += 120;
+    if (words.length > 2) score -= ((words.length - 2) * 20).clamp(0, 80);
+    if (RegExp(r'\b(sauce|juice|pie|cake|bar|snack|flavored|with)\b')
+        .hasMatch(normalizedName)) {
+      score -= 45;
+    }
+
+    return score - index;
+  }
+
+  List<FoodItem> _rankFoodSearchSuggestions(
+    List<FoodItem> foods,
+    String query,
+  ) {
+    final indexed = foods.asMap().entries.toList();
+    indexed.sort(
+      (a, b) => _foodSearchRank(b.value, query, b.key)
+          .compareTo(_foodSearchRank(a.value, query, a.key)),
+    );
+    return indexed.map((entry) => entry.value).toList(growable: false);
   }
 
   FoodItem _foodWithEmoji(FoodItem food, String emoji) {
@@ -1798,17 +1875,21 @@ class _FoodLogPageState extends State<FoodLogPage>
                     );
                     if (latestDialogQuery != requestedQuery) return;
                     final foods = response['foods'];
+                    final parsedSuggestions = foods is List
+                        ? foods
+                            .whereType<Map>()
+                            .map(
+                              (food) => FoodItem.fromCatalog(
+                                Map<String, dynamic>.from(food),
+                              ),
+                            )
+                            .toList()
+                        : <FoodItem>[];
                     setStateDialog(() {
-                      dialogSuggestions = foods is List
-                          ? foods
-                              .whereType<Map>()
-                              .map(
-                                (food) => FoodItem.fromCatalog(
-                                  Map<String, dynamic>.from(food),
-                                ),
-                              )
-                              .toList()
-                          : [];
+                      dialogSuggestions = _rankFoodSearchSuggestions(
+                        parsedSuggestions,
+                        requestedQuery,
+                      );
                     });
                   } catch (_) {
                     if (latestDialogQuery != requestedQuery) return;
@@ -1841,13 +1922,13 @@ class _FoodLogPageState extends State<FoodLogPage>
                 borderRadius: BorderRadius.circular(16),
               ),
               insetPadding: const EdgeInsets.all(20),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
                 ),
-                child: Column(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2039,6 +2120,7 @@ class _FoodLogPageState extends State<FoodLogPage>
                       ],
                     ),
                   ],
+                ),
                 ),
               ),
             );
@@ -4255,16 +4337,24 @@ class _FoodLogPageState extends State<FoodLogPage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFF546E7A), fontSize: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF546E7A), fontSize: 12),
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF37474F),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF37474F),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -4570,7 +4660,7 @@ class _FoodLogPageState extends State<FoodLogPage>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Calorie Target (Post-Surgery)',
+              'Calorie Target',
               style: TextStyle(
                 color: Color(0xFF546E7A),
                 fontSize: 13,
@@ -4629,7 +4719,7 @@ class _FoodLogPageState extends State<FoodLogPage>
         ),
         const SizedBox(height: 10),
         Text(
-          'Target: 30-35 kcal/kg (post-surgery guideline)',
+          'Target: profile kcal goal or 30-35 kcal/kg estimate',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.grey.shade600,
