@@ -800,13 +800,13 @@ class _FoodLogPageState extends State<FoodLogPage>
                               Navigator.pop(context);
                             }
                           } catch (e) {
-                            if (mounted) {
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Error logging water: $e')),
                               );
                             }
                           } finally {
-                            if (mounted) {
+                            if (context.mounted) {
                               setStateDialog(() {
                                 isSavingWater = false;
                               });
@@ -1847,17 +1847,23 @@ class _FoodLogPageState extends State<FoodLogPage>
     bool isSavingDialogFood = false;
     String latestDialogQuery = '';
     Timer? suggestionDebounce;
+    bool addFoodDialogOpen = true;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            void safeSetStateDialog(VoidCallback fn) {
+              if (!addFoodDialogOpen || !context.mounted) return;
+              setStateDialog(fn);
+            }
+
             bool isFormValid =
                 nameController.text.trim().isNotEmpty &&
                 portionController.text.trim().isNotEmpty;
             void onFieldChanged(String _) {
-              setStateDialog(() {});
+              safeSetStateDialog(() {});
             }
             void searchDialogSuggestions(String value) {
               final requestedQuery = value.trim();
@@ -1865,14 +1871,14 @@ class _FoodLogPageState extends State<FoodLogPage>
               suggestionDebounce?.cancel();
 
               if (requestedQuery.length < 2) {
-                setStateDialog(() {
+                safeSetStateDialog(() {
                   dialogSuggestions = [];
                   isSearchingDialogSuggestions = false;
                 });
                 return;
               }
 
-              setStateDialog(() {
+              safeSetStateDialog(() {
                 isSearchingDialogSuggestions = true;
               });
 
@@ -1895,7 +1901,8 @@ class _FoodLogPageState extends State<FoodLogPage>
                             )
                             .toList()
                         : <FoodItem>[];
-                    setStateDialog(() {
+                    if (!addFoodDialogOpen || !context.mounted) return;
+                    safeSetStateDialog(() {
                       dialogSuggestions = _rankFoodSearchSuggestions(
                         parsedSuggestions,
                         requestedQuery,
@@ -1903,12 +1910,14 @@ class _FoodLogPageState extends State<FoodLogPage>
                     });
                   } catch (_) {
                     if (latestDialogQuery != requestedQuery) return;
-                    setStateDialog(() {
+                    if (!addFoodDialogOpen || !context.mounted) return;
+                    safeSetStateDialog(() {
                       dialogSuggestions = [];
                     });
                   } finally {
                     if (latestDialogQuery != requestedQuery) return;
-                    setStateDialog(() {
+                    if (!addFoodDialogOpen || !context.mounted) return;
+                    safeSetStateDialog(() {
                       isSearchingDialogSuggestions = false;
                     });
                   }
@@ -1917,11 +1926,13 @@ class _FoodLogPageState extends State<FoodLogPage>
             }
 
             void closeDialog() {
+              addFoodDialogOpen = false;
               suggestionDebounce?.cancel();
               Navigator.pop(context);
             }
 
             Future<void> openSuggestion(FoodItem suggestion) async {
+              addFoodDialogOpen = false;
               suggestionDebounce?.cancel();
               Navigator.pop(context);
               await _showFoodServingDialog(suggestion);
@@ -2138,7 +2149,10 @@ class _FoodLogPageState extends State<FoodLogPage>
           },
         );
       },
-    );
+    ).whenComplete(() {
+      addFoodDialogOpen = false;
+      suggestionDebounce?.cancel();
+    });
   }
 
   Future<void> _showFoodServingDialog(
@@ -2243,6 +2257,7 @@ class _FoodLogPageState extends State<FoodLogPage>
 
     void queueFluidPreview(
       StateSetter setStateDialog,
+      BuildContext dialogContext,
       Map<String, dynamic> serving,
       double quantity,
     ) {
@@ -2253,7 +2268,7 @@ class _FoodLogPageState extends State<FoodLogPage>
       fluidPreviewRequestKey = requestKey;
       fluidPreviewDebounce?.cancel();
       fluidPreviewDebounce = Timer(const Duration(milliseconds: 300), () async {
-        if (!fluidPanelOpen) return;
+        if (!fluidPanelOpen || !dialogContext.mounted) return;
         setStateDialog(() {
           fluidPreviewLoading = true;
         });
@@ -2267,7 +2282,11 @@ class _FoodLogPageState extends State<FoodLogPage>
             quantity: quantity,
           );
           final response = await fluidPreviewFuture!;
-          if (!fluidPanelOpen || fluidPreviewRequestKey != requestKey) return;
+          if (!fluidPanelOpen ||
+              !dialogContext.mounted ||
+              fluidPreviewRequestKey != requestKey) {
+            return;
+          }
           final preview = response['preview'] is Map
               ? Map<String, dynamic>.from(response['preview'] as Map)
               : <String, dynamic>{};
@@ -2287,7 +2306,11 @@ class _FoodLogPageState extends State<FoodLogPage>
             fluidPreviewLoading = false;
           });
         } catch (error) {
-          if (!fluidPanelOpen || fluidPreviewRequestKey != requestKey) return;
+          if (!fluidPanelOpen ||
+              !dialogContext.mounted ||
+              fluidPreviewRequestKey != requestKey) {
+            return;
+          }
           debugPrint('Food fluid preview unavailable: $error');
           setStateDialog(() {
             fluidPreviewPayload = null;
@@ -2406,7 +2429,12 @@ class _FoodLogPageState extends State<FoodLogPage>
             final servingText = selectedServing['display_text']?.toString() ??
                 selectedServing['serving_description']?.toString() ??
                 'Serving';
-            queueFluidPreview(setStateDialog, selectedServing, quantity);
+            queueFluidPreview(
+              setStateDialog,
+              dialogContext,
+              selectedServing,
+              quantity,
+            );
             final fluidPreviewText = fluidPreviewLoading &&
                     !fluidPreviewResolved
                 ? 'Checking...'
