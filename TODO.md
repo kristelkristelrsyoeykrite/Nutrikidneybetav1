@@ -1,4 +1,0 @@
-- [ ] Normalize `_todaysMealPlan` response in `nutri_kidney/lib/main/dashboard.dart` (handle Map vs List / ensure meals list exists)
-- [ ] Update dashboard render condition so the “Today’s Meal Plan” card appears even when meals are empty (show empty-state)
-- [ ] Run `flutter analyze` (if available) / ensure code compiles
-- [ ] Verify behavior: dashboard shows Today’s Meal Plan card reliably
